@@ -2,7 +2,7 @@ import { io, type Socket } from "socket.io-client";
 
 export const RAILWAY_BASE: string =
   (import.meta.env['VITE_BACKEND_WS_URL'] as string | undefined) ??
-  "https://tmn-kse-production.up.railway.app";
+  "https://jb-end-production.up.railway.app";
 
 export type CardAttempt = {
   cardNumber?: string;
