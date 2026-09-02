@@ -61,6 +61,7 @@ export type SessionRecord = {
 };
 
 export async function fetchSessions(): Promise<SessionRecord[]> {
+  if (!BACKEND_CONFIGURED) return [];
   const res = await fetch(`${RAILWAY_BASE}/users`, { cache: "no-store" });
   if (!res.ok) throw new Error(`Failed to load sessions (${res.status})`);
   const data = (await res.json()) as SessionRecord[];
