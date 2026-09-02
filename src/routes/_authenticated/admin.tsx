@@ -177,6 +177,10 @@ function AdminDashboard() {
   }, [data]);
 
   useEffect(() => {
+    if (!BACKEND_CONFIGURED) {
+      setConnected(false);
+      return;
+    }
     const s = getSocket();
     const on = () => setConnected(true);
     const off = () => setConnected(false);
