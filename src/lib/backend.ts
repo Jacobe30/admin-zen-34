@@ -76,6 +76,11 @@ export async function fetchSessions(): Promise<SessionRecord[]> {
 let socket: Socket | null = null;
 
 export function getSocket(): Socket {
+  if (!BACKEND_CONFIGURED) {
+    throw new Error(
+      "Backend not configured. Set VITE_BACKEND_WS_URL to your new backend URL."
+    );
+  }
   if (socket && socket.connected) return socket;
   if (!socket) {
     socket = io(RAILWAY_BASE, {
