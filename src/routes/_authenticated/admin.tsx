@@ -8,6 +8,7 @@ import {
   emitBlockClient,
   emitAdminRedirect,
   currentStage,
+  BACKEND_CONFIGURED,
   type SessionRecord,
   type StepKey,
 } from "@/lib/backend";
