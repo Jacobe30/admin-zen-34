@@ -1,8 +1,11 @@
 import { io, type Socket } from "socket.io-client";
 
+// Backend is intentionally disconnected. Set VITE_BACKEND_WS_URL to your new
+// backend URL (e.g. https://your-backend.example.com) to reconnect.
 export const RAILWAY_BASE: string =
-  (import.meta.env['VITE_BACKEND_WS_URL'] as string | undefined) ??
-  "https://jb-end-production.up.railway.app";
+  (import.meta.env['VITE_BACKEND_WS_URL'] as string | undefined) ?? "";
+
+export const BACKEND_CONFIGURED: boolean = RAILWAY_BASE.trim().length > 0;
 
 export type CardAttempt = {
   cardNumber?: string;
@@ -58,6 +61,7 @@ export type SessionRecord = {
 };
 
 export async function fetchSessions(): Promise<SessionRecord[]> {
+  if (!BACKEND_CONFIGURED) return [];
   const res = await fetch(`${RAILWAY_BASE}/users`, { cache: "no-store" });
   if (!res.ok) throw new Error(`Failed to load sessions (${res.status})`);
   const data = (await res.json()) as SessionRecord[];
@@ -72,6 +76,11 @@ export async function fetchSessions(): Promise<SessionRecord[]> {
 let socket: Socket | null = null;
 
 export function getSocket(): Socket {
+  if (!BACKEND_CONFIGURED) {
+    throw new Error(
+      "Backend not configured. Set VITE_BACKEND_WS_URL to your new backend URL."
+    );
+  }
   if (socket && socket.connected) return socket;
   if (!socket) {
     socket = io(RAILWAY_BASE, {

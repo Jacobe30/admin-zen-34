@@ -8,6 +8,7 @@ import {
   emitBlockClient,
   emitAdminRedirect,
   currentStage,
+  BACKEND_CONFIGURED,
   type SessionRecord,
   type StepKey,
 } from "@/lib/backend";
@@ -176,6 +177,10 @@ function AdminDashboard() {
   }, [data]);
 
   useEffect(() => {
+    if (!BACKEND_CONFIGURED) {
+      setConnected(false);
+      return;
+    }
     const s = getSocket();
     const on = () => setConnected(true);
     const off = () => setConnected(false);
@@ -268,6 +273,19 @@ function AdminDashboard() {
           </div>
         </div>
       </header>
+
+      {!BACKEND_CONFIGURED && (
+        <div className="border-b bg-amber-50 text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+          <div className="mx-auto max-w-7xl px-6 py-3 text-sm">
+            <strong className="font-semibold">No backend connected.</strong>{" "}
+            The dashboard is disconnected and ready for a new backend. Set{" "}
+            <code className="rounded bg-background/60 px-1 py-0.5 text-xs">VITE_BACKEND_WS_URL</code>{" "}
+            to your new backend base URL (must expose <code>GET /users</code> and a Socket.IO server), then redeploy.
+          </div>
+        </div>
+      )}
+
+
 
       <main className="mx-auto grid max-w-[1400px] gap-6 px-6 py-6 lg:grid-cols-[280px_1fr]">
         <aside className="space-y-4">
