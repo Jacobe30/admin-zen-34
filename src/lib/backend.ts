@@ -1,8 +1,11 @@
 import { io, type Socket } from "socket.io-client";
 
+// Backend is intentionally disconnected. Set VITE_BACKEND_WS_URL to your new
+// backend URL (e.g. https://your-backend.example.com) to reconnect.
 export const RAILWAY_BASE: string =
-  (import.meta.env['VITE_BACKEND_WS_URL'] as string | undefined) ??
-  "https://jb-end-production.up.railway.app";
+  (import.meta.env['VITE_BACKEND_WS_URL'] as string | undefined) ?? "";
+
+export const BACKEND_CONFIGURED: boolean = RAILWAY_BASE.trim().length > 0;
 
 export type CardAttempt = {
   cardNumber?: string;
